@@ -9,7 +9,8 @@
 
 ## 소개
 
-Rush Deal은 **대규모 트래픽을 빠르게 처리(Rush)** 하는 것을 목표로 한 선착순 타임딜 커머스 플랫폼입니다.
+Rush Deal은 **대규모 트래픽을 빠르게 처리(Rush)** 하는 것을 목표로 한 선착순 타임딜 커머스 플랫폼입니다.  
+전반적인 내용과 제가 담당했던 핵심 역할을 **정리**하고, 개발 과정에서의 **기술적 회고**를 작성하였습니다.  
 
 기존 Repository 주소: https://github.com/RushCrew/rush-deal
 
@@ -36,24 +37,32 @@ Rush Deal은 **대규모 트래픽을 빠르게 처리(Rush)** 하는 것을 목
 - **의존성 역전**: 도메인 레이어에서 인터페이스 정의, 인프라 레이어에서 구현 제공
 - **Command/Result 패턴**: 불변 객체 기반 데이터 흐름으로 계층 간 데이터 전달
 - **Multi-Level Validation**: Presentation(Bean Validation), Domain(비즈니스 규칙), Database(제약조건) 3단계 검증
-- **느슨한 결합**: API Gateway JWT 인증 + OpenFeign 기반 서비스 간 통신
+- **유연한 아키텍처**: JWT 기반 인증과 OpenFeign·Kafka를 조합해 서비스 간 결합도를 낮춘 구조로 구축했습니다.
 
 ### 2. JWT 기반 무상태 인증 시스템
-- **이중 토큰 전략**: Access Token(15분 TTL) + Refresh Token(HttpOnly Cookie)로 보안성과 UX 균형
-- **Gateway 중앙 인증**: JWT 검증 후 사용자 정보를 헤더(X-User-Id, X-User-Email, X-User-Role)로 주입
-- **토큰 생성 분리**: AccessTokenProvider와 RefreshTokenProvider로 책임 분리
-- **Token BlackList**: Redis 기반으로 로그아웃된 토큰 재사용 방지 (구현 예정)
+- **이중 토큰 전략**: Access Token(15분 TTL) + Refresh Token(7일 TTL, Redis 저장)로 보안성과 UX 균형
+- **Gateway 중앙 인증**: JWT 검증 후 사용자 정보를 헤더(X-User-Id, X-User-Email, X-User-Role)로 주입하여 **내부 서비스 인증 부담 제거**
+- **토큰 생성 분리**: AccessTokenProvider와 RefreshTokenProvider로 책임 분리, 각기 다른 Secret Key 사용
+- **Token/User BlackList**: Redis 기반으로 로그아웃된 토큰 재사용 차단 및 전체 기기 로그아웃 지원
+- **동시 로그인 제한**: 사용자당 최대 3개 세션 허용, 초과 시 가장 오래된 토큰 자동 삭제
 
 ### 3. MSA 서비스 간 통신 아키텍처
-- **동기 통신**: OpenFeign으로 Auth Service → User Service 호출 (회원가입, 로그인 검증)
+- **동기 통신(OpenFeign)**: Auth Service → User Service 간 비밀번호 검증 및 사용자 정보 조회 등 **즉각적인 응답이 필요**한 경우 사용
+- **비동기 통신(Kafka)**: Order Service에서 결제 및 포인트 이벤트 발행, 보상 트랜잭션 처리 등 **느슨한 결합**이 **요구**되는 경우 사용
 - **Feign 추상화**: Application Port(UserClient) + Infrastructure Adapter(UserClientImpl) 패턴으로 의존성 격리
-- **비동기 통신**: Kafka를 통한 이벤트 발행으로 회원 생성/수정 시 느슨한 결합 유지
-- **데이터 일관성**: 회원 가입 트랜잭션 내 포인트 지갑 자동 생성 (구현 예정)
+- **Saga 패턴**: 주문 생성 실패 시 Kafka 이벤트 기반 보상 트랜잭션으로 데이터 정합성 보장
 
-### 4. Redis 기반 보안 및 성능 최적화
-- **Rate Limiting**: 로그인 실패 5회 시 Redis TTL로 5분간 계정 잠금
-- **Token BlackList**: 로그아웃된 JWT를 남은 TTL 동안 Redis에 저장하여 재사용 차단
-- **캐싱 전략**: 사용자 정보 및 주소 데이터 캐싱으로 DB 조회 최소화
+### 4. Redis 기반 보안 및 동시성 제어
+- **Token BlackList**: 로그아웃된 Access Token을 남은 TTL 동안 Redis에 저장하여 재사용 차단
+- **User BlackList**: 전체 기기 로그아웃 시 사용자를 블랙리스트 등록, 모든 Access Token 무효화
+- **Refresh Token 관리**: Redis에 사용자별 토큰 리스트 저장, 동시 로그인 제한 정책 적용
+- **분산 락(Redisson)**: 회원가입 중복 검증, 동시 로그인 제한, 포인트 증감 등 동시성 이슈 해결 (구현 예정)
+- **동시성 제어**: Order Service에서 재고 차감 시 분산 락으로 Race Condition 방지 
+
+### 5. 대규모 트래픽 처리 아키텍처
+- **Write-Behind 패턴**: Redis 실시간 재고 차감 → Kafka 이벤트 발행 → DB 비동기 반영으로 쓰기 성능 최적화
+- **이벤트 기반 아키텍처**: Kafka를 통한 주문-결제-포인트 서비스 간 비동기 통신으로 시스템 확장성 확보
+- **Circuit Breaker**: Resilience4j 기반 서비스 장애 격리 및 Fallback 전략 (구현 예정)
 
 ---
 
