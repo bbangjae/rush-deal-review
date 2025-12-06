@@ -1,6 +1,7 @@
 package com.rushcrew.product.domain.entity;
 
-import com.rushcrew.product.presentation.dto.request.CreateOptionRequest;
+import com.rushcrew.common.entity.BaseEntity;
+import com.rushcrew.product.domain.model.UpdateOptionParams;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -23,7 +24,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(access = AccessLevel.PRIVATE)
-public class ProductOption {
+public class ProductOption extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -39,11 +40,20 @@ public class ProductOption {
     @Column(nullable = false)
     private String color;
 
-    public static ProductOption create(Product product, CreateOptionRequest request) {
+    public static ProductOption of(Product product, String size, String color) {
         return ProductOption.builder()
             .product(product)
-            .size(request.size())
-            .color(request.color())
+            .size(size)
+            .color(color)
             .build();
+    }
+
+    public void update(UpdateOptionParams params) {
+        if (params.size() != null) {
+            this.size = params.size();
+        }
+        if (params.color() != null) {
+            this.color = params.color();
+        }
     }
 }

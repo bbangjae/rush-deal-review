@@ -1,12 +1,48 @@
 spring:
-  application:
-    name: order-service
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.quartz.QuartzAutoConfiguration
+
+  batch:
+    jdbc:
+      initialize-schema: never   # SQL 스크립트로 처리
+      table-prefix: order_schema.BATCH_   # 스키마 명시
+    job:
+      enabled: false
 
   datasource:
-    url: jdbc:postgresql://localhost:15432/rushdeal_db
-    username: rushdeal
-    password: rushdeal
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: always   # Quartz 자동 초기화 사용
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: OrderScheduler
+            instanceId: AUTO
+
+          dataSource:
+            main:
+              driver: org.postgresql.Driver
+              URL: ${DB_URL}
+              user: ${DB_USERNAME}
+              password: ${DB_PASSWORD}
+
+          jobStore:
+            class: org.quartz.impl.jdbcjobstore.JobStoreTX
+            driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+            tablePrefix: quartz_schema.QRTZ_
+            isClustered: true
+            useProperties: false
+
+          threadPool:
+            threadCount: 10
 
   jpa:
     hibernate:
@@ -17,17 +53,31 @@ spring:
         format_sql: true
         default_schema: order_schema
 
-  # 스키마 자동 생성
   sql:
     init:
       mode: always
+      encoding: UTF-8
+      schema-locations:
+        - classpath:schema.sql
+        - classpath:sql/batch-schema.sql
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: order-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 server:
   port: 8050
 
 eureka:
   client:
-    register-with-eureka: true
-    fetch-registry: true
     service-url:
-      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_URL}
+  instance:
+    hostname: localhost
+    prefer-ip-address: true
