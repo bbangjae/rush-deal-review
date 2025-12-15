@@ -14,10 +14,24 @@ Rush Deal은 **대규모 트래픽을 빠르게 처리(Rush)** 하는 것을 목
 
 기존 Repository 주소: https://github.com/RushCrew/rush-deal
 
+## 관련 블로그 글
+
+프로젝트를 진행하며 학습한 내용과 기술적 의사결정 과정을 상세히 정리했습니다
+
+### 기획
+- 📝 [ 이벤트 스토밍 도입기](https://a-steady-byun.tistory.com/8)
+
+### 의사결정
+- 📝 [MSA 포인트 시스템, 동기/비동기 통신 전략으로 서비스 안정성 확보하기](https://a-steady-byun.tistory.com/12)
+
+### 트러블슈팅
+- 📝 [Java 21 업그레이드 후 Eureka DNS 해석 실패](https://a-steady-byun.tistory.com/9)
+- 📝 [로그아웃 API 구현 과정과 개선 기록](https://a-steady-byun.tistory.com/11)
+
 ### 팀장 
 
 #### 프로젝트 기획 및 아키텍처 설계
-- **이벤트 스토밍 주도**: 도메인 이벤트 식별 및 서비스 경계 정의 ([상세 내용](https://a-steady-byun.tistory.com/8))
+- **이벤트 스토밍 주도**: 도메인 이벤트 식별 및 서비스 경계 정의 
 - **MSA 아키텍처 설계**: Spring Cloud(Eureka, Gateway, OpenFeign) 기반 서비스 디스커버리 및 통신 구조 설계
 - **재고 관리 동시성 제어 전략 수립**: **Write-Behind 패턴** (Redis → Kafka → DB 비동기 반영)
 - **이벤트 기반 보상 트랜잭션**: Saga Pattern 적용 (결제 실패 시 재고/포인트 자동 복구 플로우 설계)
@@ -56,15 +70,13 @@ Rush Deal은 **대규모 트래픽을 빠르게 처리(Rush)** 하는 것을 목
 - **Token BlackList**: 로그아웃된 Access Token을 남은 TTL 동안 Redis에 저장하여 재사용 차단
 - **User BlackList**: 전체 기기 로그아웃 시 사용자를 블랙리스트 등록, 모든 Access Token 무효화
 - **Refresh Token 관리**: Redis에 사용자별 토큰 리스트 저장, 동시 로그인 제한 정책 적용
-- **분산 락(Redisson)**: 회원가입 중복 검증, 동시 로그인 제한, 포인트 증감 등 동시성 이슈 해결 (구현 예정)
+- **분산 락(Redisson)**: 회원가입 중복 검증, 동시 로그인 제한, 포인트 증감 등 동시성 이슈 해결 
 - **동시성 제어**: Order Service에서 재고 차감 시 분산 락으로 Race Condition 방지 
 
 ### 5. 대규모 트래픽 처리 아키텍처
 - **Write-Behind 패턴**: Redis 실시간 재고 차감 → Kafka 이벤트 발행 → DB 비동기 반영으로 쓰기 성능 최적화
 - **이벤트 기반 아키텍처**: Kafka를 통한 주문-결제-포인트 서비스 간 비동기 통신으로 시스템 확장성 확보
 - **Circuit Breaker**: Resilience4j 기반 서비스 장애 격리 및 Fallback 전략 (구현 예정)
-
----
 
 ## 기술 스택
 | Category | Technology |
@@ -81,8 +93,6 @@ Rush Deal은 **대규모 트래픽을 빠르게 처리(Rush)** 하는 것을 목
 | Authentication | JWT, BCrypt |
 | Resilience | Resilience4j (Circuit Breaker) |
 | Monitoring | Spring Actuator, Prometheus |
-
----
 
 ## 아키텍처
 ```
@@ -117,5 +127,3 @@ user-service/
     └── validator                     # 검증 서비스 구현체
         └── UserValidatorImpl.java    # UserValidator 구현체
 ```
-
-
